@@ -39,7 +39,7 @@
       "slug": "raffle-hub",
       "category": "commerce",
       "issue": "https://github.com/pollar-xyz/pollar-apps/issues/11",
-      "deploy": null,
+      "deploy": "https://raffle-hub-ebon.vercel.app",
       "author": "josueazc"
     },
     {
