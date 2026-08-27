@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+/*
+ * Pollar design tokens. Every color in the app derives from these.
+ * Light-first, like pollar.xyz (the brand look is white + Pollar blue).
+ * Dark mode is opt-in: set <html data-theme="dark"> to enable it.
+ */
+:root {
+  color-scheme: light;
+
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+
+  --primary: #005db4;
+  --primary-hover: #0047a0;
+  --primary-light: #f0f7ff;
+  --primary-foreground: #ffffff;
+
+  --surface: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --border: #e5e7eb;
+
+  --muted: #6b7280;
+  --muted-light: #9ca3af;
+
+  --error: #dc2626;
+  --error-light: #fef2f2;
+  --error-border: #fecaca;
+
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --success-border: #bbf7d0;
+
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  --warning-border: #fde68a;
+
+  /* Mascot (polar bear): brand illustration colors, same in both themes. */
+  --mascot: #ffffff;
+  --mascot-outline: #005db4;
+  --mascot-shade: #cde4fa;
+  --mascot-features: #0f2b46;
+
+  /* Official logo fill: brand blue on light (pollar-logo-light). */
+  --logo: var(--primary);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #0a0e14;
+  --foreground: #eef2f6;
+
+  /* Same blue family; hover goes lighter on dark. White stays readable on both. */
+  --primary: #1668c1;
+  --primary-hover: #2f81d6;
+  --primary-light: #0e1d33;
+  --primary-foreground: #ffffff;
+
+  --surface: #111823;
+  --surface-hover: #18202e;
+  --border: #232d3d;
+
+  --muted: #8b95a5;
+  --muted-light: #647080;
+
+  --error: #f87171;
+  --error-light: #2a1113;
+  --error-border: #542427;
+
+  --success: #4ade80;
+  --success-light: #0c2416;
+  --success-border: #1d4a2c;
+
+  --warning: #fbbf24;
+  --warning-light: #291d05;
+  --warning-border: #57420f;
+
+  /* Near-white on dark, matching pollar-logo-dark. */
+  --logo: var(--foreground);
+}
+
+/* Expose the tokens as Tailwind utilities (bg-primary, text-muted, border-border…). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --color-error: var(--error);
+  --color-error-light: var(--error-light);
+  --color-error-border: var(--error-border);
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-warning-border: var(--warning-border);
+  --color-logo: var(--logo);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/*
+ * Modal animation (components/ui/Modal.tsx). Pure CSS via @starting-style +
+ * allow-discrete: the sheet slides in/out through the bottom edge on phones
+ * and fades in centered on desktop. Browsers without @starting-style just
+ * skip the animation.
+ */
+.pollar-modal {
+  transition:
+    translate 0.3s ease,
+    opacity 0.3s ease;
+}
+/* display lives here, NOT as a class on the element: a bare `flex` class
+ * would override the closed dialog's native display:none and leave an
+ * invisible layer over the page that swallows clicks. */
+.pollar-modal[open] {
+  display: flex;
+  flex-direction: column;
+  translate: 0 0;
+}
+/* enter: slide up from the bottom edge */
+@starting-style {
+  .pollar-modal[open] {
+    translate: 0 100%;
+  }
+}
+/* exit: Modal.tsx adds .closing, waits for the transition, then close()s.
+ * (A pure-CSS exit via `overlay`/`display allow-discrete` is not reliable;
+ * some engines drop the dialog from the top layer instantly.) */
+.pollar-modal[open].closing {
+  translate: 0 100%;
+}
+
+.pollar-modal::backdrop {
+  background: color-mix(in srgb, var(--foreground) 30%, transparent);
+  backdrop-filter: blur(4px);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+@starting-style {
+  .pollar-modal[open]::backdrop {
+    opacity: 0;
+  }
+}
+.pollar-modal[open].closing::backdrop {
+  opacity: 0;
+}
+
+/* Desktop: centered, fade + a small rise instead of the full slide */
+@media (min-width: 640px) {
+  .pollar-modal[open] {
+    translate: 0 0;
+    opacity: 1;
+  }
+  @starting-style {
+    .pollar-modal[open] {
+      translate: 0 24px;
+      opacity: 0;
+    }
+  }
+  .pollar-modal[open].closing {
+    translate: 0 24px;
+    opacity: 0;
+  }
+}
