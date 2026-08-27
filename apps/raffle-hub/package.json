@@ -1,12 +1,20 @@
 {
-  "name": "template",
+  "name": "raffle-hub",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "spike:draw": "node scripts/spike-draw.mjs",
+    "spike:payment": "node --experimental-strip-types scripts/spike-verify-payment.ts",
+    "spike:cycle": "node --experimental-strip-types scripts/spike-cycle.ts",
+    "verify:draw": "node scripts/verify-draw.mjs"
+  },
+  "engines": {
+    "node": ">=22.6"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

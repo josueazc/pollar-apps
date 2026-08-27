@@ -38,6 +38,11 @@ export async function POST(
     );
   }
 
+  // Shut sales BEFORE reading the ticket list. The other order leaves a window
+  // where a payment confirmed mid-draw joins the raffle but not the proof,
+  // which would leave the published proof disagreeing with the page.
+  await closeSales(raffle.id);
+
   const tickets = await listTickets(raffle.id);
   const sold = tickets.filter((t) => t.status === "sold");
   if (sold.length === 0) {
@@ -46,9 +51,6 @@ export async function POST(
       { status: 409 }
     );
   }
-
-  // No more numbers can be sold once the outcome is determined.
-  await closeSales(raffle.id);
 
   let proof;
   try {

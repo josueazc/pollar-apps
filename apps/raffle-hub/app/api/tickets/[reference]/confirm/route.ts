@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRaffle, getTicketByReference, markSold } from "@/lib/store";
+import { getDraw, getRaffle, getTicketByReference, markSold } from "@/lib/store";
 import { verifyPayment } from "@/lib/horizon";
 
 /**
@@ -32,6 +32,20 @@ export async function POST(
   const raffle = await getRaffle(ticket.raffleId);
   if (!raffle) {
     return NextResponse.json({ error: "No raffle with that code." }, { status: 404 });
+  }
+
+  // Once the draw is published its proof names the exact set of sold tickets.
+  // Adding another one afterwards would leave the published proof disagreeing
+  // with the page, so late payments are refused rather than quietly accepted.
+  // The money is on-chain and the organizer settles it off-app.
+  if (await getDraw(raffle.id)) {
+    return NextResponse.json(
+      {
+        error:
+          "This raffle has already been drawn. Your payment arrived too late to become a ticket — contact the organizer.",
+      },
+      { status: 409 }
+    );
   }
 
   const body = await request.json().catch(() => null);

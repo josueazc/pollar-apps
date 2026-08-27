@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { claimForLatePayment, getRaffle, getTicketByReference, markSold } from "@/lib/store";
+import {
+  claimForLatePayment,
+  getDraw,
+  getRaffle,
+  getTicketByReference,
+  markSold,
+} from "@/lib/store";
 import { recentPaymentsTo } from "@/lib/horizon";
 import { parseReference } from "@/lib/raffle";
 
@@ -29,6 +35,12 @@ export async function POST(
   const raffle = await getRaffle(id);
   if (!raffle) {
     return NextResponse.json({ error: "No raffle with that code." }, { status: 404 });
+  }
+
+  // The published proof fixes which tickets were sold. Assigning more after the
+  // draw would contradict it, so reconciliation stops once a raffle is drawn.
+  if (await getDraw(raffle.id)) {
+    return NextResponse.json({ scanned: 0, assigned: [], unmatched: [], drawn: true });
   }
 
   const payments = await recentPaymentsTo(raffle.organizerAddress);
