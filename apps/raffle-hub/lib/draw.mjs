@@ -23,9 +23,6 @@
 
 const HORIZON = "https://horizon-testnet.stellar.org";
 
-/** Horizon returns at most this many records per page. */
-const PAGE_LIMIT = 200;
-
 async function horizon(path) {
   const res = await fetch(`${HORIZON}${path}`);
   if (!res.ok) {

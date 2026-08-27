@@ -36,7 +36,8 @@ async function expectAccepted(name: string, expected: ExpectedPayment, hash = RE
   const ok = result.ok;
   console.log(`  ${ok ? "✓" : "✗"} ${name}`);
   if (!ok) console.log(`      rejected: ${result.reason}`);
-  ok ? passed++ : failed++;
+  if (ok) passed++;
+  else failed++;
   return result;
 }
 
@@ -44,9 +45,10 @@ async function expectRejected(name: string, expected: ExpectedPayment, hash = RE
   const result = await verifyPayment(hash, expected);
   const ok = !result.ok;
   console.log(`  ${ok ? "✓" : "✗"} ${name}`);
-  if (ok) console.log(`      reason: ${result.reason}`);
-  else console.log("      ACCEPTED a payment it should have refused");
-  ok ? passed++ : failed++;
+  if (result.ok) console.log("      ACCEPTED a payment it should have refused");
+  else console.log(`      reason: ${result.reason}`);
+  if (ok) passed++;
+  else failed++;
 }
 
 console.log("── Spike 1a: payment verification ───────────────────────");

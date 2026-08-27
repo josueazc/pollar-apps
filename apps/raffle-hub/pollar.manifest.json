@@ -1,8 +1,8 @@
 {
-  "name": "",
-  "slug": "",
-  "description": "",
-  "category": "",
-  "icon": "/icon.png",
+  "name": "Raffle Hub",
+  "slug": "raffle-hub",
+  "description": "Raffles with paid tickets and a draw anyone can re-check: the winner comes from a public Stellar ledger hash nobody controls, and the proof is on the page.",
+  "category": "commerce",
+  "icon": "/icon.svg",
   "url": ""
 }
