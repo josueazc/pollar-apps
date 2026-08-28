@@ -51,6 +51,25 @@ export function parseReference(
 
 export type TicketStatus = "free" | "reserved" | "sold";
 
+/**
+ * Everything the buyer's client needs to pay for a held number.
+ *
+ * Shared by the reserve route and the buy sheet on purpose. These two used to
+ * describe the same object independently — the server called the field `memo`,
+ * the client read `reference` — so the client silently sent `undefined` as the
+ * Stellar memo and posted to `/api/tickets/undefined/confirm`. One type means
+ * that mismatch is a compile error rather than a runtime shrug.
+ */
+export interface PaymentInstruction {
+  /** Goes in the Stellar memo; the only link between payment and number. */
+  reference: string;
+  recipient: string;
+  amount: string;
+  assetCode: string;
+  assetIssuer: string | null;
+  expiresAt: string;
+}
+
 export interface Raffle {
   id: string;
   prizeName: string;

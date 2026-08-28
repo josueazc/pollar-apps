@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRaffle, reserveNumber } from "@/lib/store";
-import { salesOpen } from "@/lib/raffle";
+import { salesOpen, type PaymentInstruction } from "@/lib/raffle";
 
 /**
  * Hold a number while the buyer pays.
@@ -39,15 +39,14 @@ export async function POST(
     return NextResponse.json({ error: result.reason }, { status: 409 });
   }
 
-  return NextResponse.json({
-    ticket: result.ticket,
-    payment: {
-      recipient: raffle.organizerAddress,
-      amount: raffle.ticketPrice,
-      assetCode: raffle.assetCode,
-      assetIssuer: raffle.assetIssuer,
-      memo: result.ticket.reference,
-      expiresAt: result.ticket.expiresAt,
-    },
-  });
+  const payment: PaymentInstruction = {
+    reference: result.ticket.reference,
+    recipient: raffle.organizerAddress,
+    amount: raffle.ticketPrice,
+    assetCode: raffle.assetCode,
+    assetIssuer: raffle.assetIssuer,
+    expiresAt: result.ticket.expiresAt,
+  };
+
+  return NextResponse.json({ ticket: result.ticket, payment });
 }

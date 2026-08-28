@@ -9,16 +9,9 @@ import { Spinner } from "@/components/ui/Spinner";
 import { usePollarAuth } from "@/hooks/usePollarAuth";
 import { firstError } from "@/lib/errors";
 import type { PaymentAsset } from "@/lib/payments";
-import type { Raffle } from "@/lib/raffle";
+import type { PaymentInstruction, Raffle } from "@/lib/raffle";
 
-interface Reservation {
-  reference: string;
-  recipient: string;
-  amount: string;
-  assetCode: string;
-  assetIssuer: string | null;
-  expiresAt: string;
-}
+type Reservation = PaymentInstruction;
 
 type Step =
   | { step: "reserving" }
@@ -97,7 +90,19 @@ export function BuyTicketModal({
           setState({ step: "error", message: data.error ?? "Could not hold that number." });
           return;
         }
-        setState({ step: "ready", reservation: data.payment });
+        // Guard the boundary: res.json() is untyped, and a reservation without
+        // a reference would send an empty Stellar memo and be impossible to
+        // match to a number. Better to fail here, loudly, than to take money
+        // for a ticket that can never be assigned.
+        const payment = data.payment as PaymentInstruction | undefined;
+        if (!payment?.reference) {
+          setState({
+            step: "error",
+            message: "The raffle did not return a payment reference. Nothing was charged.",
+          });
+          return;
+        }
+        setState({ step: "ready", reservation: payment });
       } catch {
         setState({ step: "error", message: "Could not reach the raffle. Check your connection." });
       }
