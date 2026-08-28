@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { usePollarAuth } from "@/hooks/usePollarAuth";
+import { firstError } from "@/lib/errors";
 import type { PaymentAsset } from "@/lib/payments";
 import type { Raffle } from "@/lib/raffle";
 
@@ -130,9 +131,15 @@ export function BuyTicketModal({
       );
 
       if (result.status === "error") {
+        // `details` arrives as a validation object, not a string — see
+        // lib/errors.ts for why rendering it naively crashed the page.
+        console.error("[raffle-hub] payment rejected by Pollar:", result);
         setState({
           step: "error",
-          message: result.message ?? result.details ?? "The payment didn't go through.",
+          message: firstError(
+            [result.message, result.details],
+            "The payment didn't go through. Check the amount and your balance, then try again."
+          ),
         });
         return;
       }
@@ -166,9 +173,13 @@ export function BuyTicketModal({
       }
       setState({ step: "error", message: data.error ?? "The payment could not be matched." });
     } catch (err) {
+      console.error("[raffle-hub] payment threw:", err);
       setState({
         step: "error",
-        message: err instanceof Error ? err.message : "The payment didn't go through.",
+        message: firstError(
+          [err instanceof Error ? err.message : err],
+          "The payment didn't go through. Check your connection and try again."
+        ),
       });
     }
   }, [reservation, runTx, number, onSold]);
