@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoginButton } from "@/components/LoginButton";
 import { Button } from "@/components/ui/Button";
@@ -31,6 +31,7 @@ export default function CreateRafflePage() {
   const [drawTime, setDrawTime] = useState(defaultDrawTime());
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
 
   const payAsset = paymentAssetFrom(asset);
   const currency = currencyOf(payAsset);
@@ -38,6 +39,14 @@ export default function CreateRafflePage() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!user) return;
+
+    // A ref, not the `saving` state: setState is asynchronous, so between the
+    // first click and the re-render that disables the button there is a window
+    // where a second submit gets through. That window is not theoretical — it
+    // produced two identical raffles a second apart during testing. A ref flips
+    // synchronously and closes it.
+    if (submitting.current) return;
+    submitting.current = true;
 
     setSaving(true);
     setErrors([]);
@@ -65,6 +74,9 @@ export default function CreateRafflePage() {
     setSaving(false);
 
     if (!res.ok) {
+      // Released only on failure: on success the page navigates away, and
+      // re-opening the gate would just invite a duplicate on the way out.
+      submitting.current = false;
       setErrors(data.errors ?? ["The raffle could not be created."]);
       return;
     }
