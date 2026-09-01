@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { usePollarAuth } from "@/hooks/usePollarAuth";
+import { useTicketTrustline } from "@/hooks/useTicketTrustline";
 import { firstError } from "@/lib/errors";
 import type { PaymentAsset } from "@/lib/payments";
 import type { PaymentInstruction, Raffle } from "@/lib/raffle";
@@ -16,6 +17,7 @@ type Reservation = PaymentInstruction;
 type Step =
   | { step: "reserving" }
   | { step: "ready"; reservation: Reservation }
+  | { step: "enabling"; reservation: Reservation }
   | { step: "paying"; reservation: Reservation }
   | { step: "confirming"; reservation: Reservation; txHash: string }
   | { step: "done"; number: number; txHash: string }
@@ -66,6 +68,7 @@ export function BuyTicketModal({
 }) {
   const { user, login, verified } = usePollarAuth();
   const { runTx } = usePollar();
+  const ensureTrustline = useTicketTrustline();
   const [state, setState] = useState<Step>({ step: "reserving" });
   const reserving = useRef(false);
 
@@ -115,6 +118,25 @@ export function BuyTicketModal({
 
   const pay = useCallback(async () => {
     if (!reservation) return;
+
+    // A wallet with no USDC trustline cannot pay in USDC at all, and the
+    // failure would surface as an opaque transaction error. Establish it first;
+    // Pollar sponsors it, so this costs the buyer nothing.
+    setState({ step: "enabling", reservation });
+    try {
+      await ensureTrustline();
+    } catch (err) {
+      console.error("[raffle-hub] trustline setup failed:", err);
+      setState({
+        step: "error",
+        message: firstError(
+          [err instanceof Error ? err.message : err],
+          `Could not enable ${reservation.assetCode} on your wallet. Nothing was charged.`
+        ),
+      });
+      return;
+    }
+
     setState({ step: "paying", reservation });
 
     // No native fallback. The old code fell back to `{ type: "native" }` when
@@ -196,7 +218,7 @@ export function BuyTicketModal({
         ),
       });
     }
-  }, [reservation, runTx, number, onSold]);
+  }, [reservation, runTx, number, onSold, ensureTrustline]);
 
   const shareUrl = number === null ? "" : `${origin}/r/${raffle.id}?buy=${number}`;
 
@@ -220,7 +242,10 @@ export function BuyTicketModal({
           </>
         )}
 
-        {(state.step === "ready" || state.step === "paying") && reservation && (
+        {(state.step === "ready" ||
+          state.step === "enabling" ||
+          state.step === "paying") &&
+          reservation && (
           <>
             <div className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4">
               <span className="text-xs uppercase tracking-wide text-muted">You pay</span>
@@ -267,14 +292,16 @@ export function BuyTicketModal({
             ) : (
               <Button
                 onClick={() => void pay()}
-                loading={state.step === "paying"}
+                loading={state.step === "paying" || state.step === "enabling"}
                 disabled={!verified || countdown === "expired"}
               >
                 {countdown === "expired"
                   ? "Reservation expired"
-                  : state.step === "paying"
-                    ? "Paying…"
-                    : `Pay ${reservation.amount} ${reservation.assetCode}`}
+                  : state.step === "enabling"
+                    ? `Enabling ${reservation.assetCode}…`
+                    : state.step === "paying"
+                      ? "Paying…"
+                      : `Pay ${reservation.amount} ${reservation.assetCode}`}
               </Button>
             )}
             <p className="text-center text-xs text-muted">

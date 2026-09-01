@@ -22,6 +22,14 @@ crear la rifa y al comprobar cada pago. No hay respaldo a XLM nativo en ningún 
 una rifa con otro asset se rechaza, y el modal de compra falla antes de cobrar en vez de
 pagar en otra moneda.
 
+**Trustlines.** En Stellar una cuenta no puede recibir ni enviar un asset emitido hasta
+tener su *trustline*. XLM nativo no necesita ninguna, así que mientras los tickets eran
+XLM esto no aparecía; con USDC, un comprador sin trustline directamente no puede pagar.
+El flujo de compra la establece antes de cobrar
+([`hooks/useTicketTrustline.ts`](hooks/useTicketTrustline.ts)) y Pollar la patrocina: la
+app cubre la reserva de 0.5 XLM y la comisión, así que quien compra su primer número no
+necesita XLM propio ni enterarse de que existe una reserva.
+
 ---
 
 ## Correr desde cero
