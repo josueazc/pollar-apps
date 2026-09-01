@@ -1,16 +1,16 @@
 {
-  "_comment": "A real published draw, committed so `pnpm verify:draw` works from a fresh clone. Verifies against live Horizon: the ledger and its hash are public and permanent, so this file can be checked by anyone, any time, without running the app.",
+  "_comment": "A real published draw, committed so `pnpm verify:draw` works from a fresh clone. Verifies against live Horizon: the ledger and its hash are public and permanent, so this file can be checked by anyone, any time, without running the app. Raffle W3BNT57C, tickets 0.05 USDC, three buyers on three separate accounts.",
   "mechanism": "stellar-testnet-ledger-hash",
-  "drawTime": "2026-08-28T23:49:00.000Z",
+  "drawTime": "2026-09-01T20:50:00.000Z",
   "ledger": {
-    "sequence": 4387471,
-    "hash": "f4f690b8568da3c0a35226a382da3edcb4f95688710a006cd4fd280bd05cc85b",
-    "closedAt": "2026-08-28T23:49:02Z",
-    "explorer": "https://stellar.expert/explorer/testnet/ledger/4387471",
-    "horizon": "https://horizon-testnet.stellar.org/ledgers/4387471"
+    "sequence": 4454443,
+    "hash": "b9b1a9ac1a1cbab3ddbd4fd2d1d46d39e81a82191e0d31ec5b2831fa102d9be5",
+    "closedAt": "2026-09-01T20:50:02Z",
+    "explorer": "https://stellar.expert/explorer/testnet/ledger/4454443",
+    "horizon": "https://horizon-testnet.stellar.org/ledgers/4454443"
   },
-  "soldTickets": [15, 17, 27],
+  "soldTickets": [28, 29, 30],
   "soldCount": 3,
   "winningIndex": 1,
-  "winningNumber": 17
+  "winningNumber": 29
 }
