@@ -1,0 +1,16 @@
+{
+  "_comment": "A real published draw, committed so `pnpm verify:draw` works from a fresh clone. Verifies against live Horizon: the ledger and its hash are public and permanent, so this file can be checked by anyone, any time, without running the app.",
+  "mechanism": "stellar-testnet-ledger-hash",
+  "drawTime": "2026-08-28T23:49:00.000Z",
+  "ledger": {
+    "sequence": 4387471,
+    "hash": "f4f690b8568da3c0a35226a382da3edcb4f95688710a006cd4fd280bd05cc85b",
+    "closedAt": "2026-08-28T23:49:02Z",
+    "explorer": "https://stellar.expert/explorer/testnet/ledger/4387471",
+    "horizon": "https://horizon-testnet.stellar.org/ledgers/4387471"
+  },
+  "soldTickets": [15, 17, 27],
+  "soldCount": 3,
+  "winningIndex": 1,
+  "winningNumber": 17
+}

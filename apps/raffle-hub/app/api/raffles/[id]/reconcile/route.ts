@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import {
   claimForLatePayment,
-  getDraw,
   getRaffle,
   getTicketByReference,
   markSold,
 } from "@/lib/store";
 import { recentPaymentsTo } from "@/lib/horizon";
-import { parseReference } from "@/lib/raffle";
+import { parseReference, paymentsAccepted } from "@/lib/raffle";
 
 /**
  * The backstop: find paid tickets whose buyer never reported the hash.
@@ -37,10 +36,28 @@ export async function POST(
     return NextResponse.json({ error: "No raffle with that code." }, { status: 404 });
   }
 
-  // The published proof fixes which tickets were sold. Assigning more after the
-  // draw would contradict it, so reconciliation stops once a raffle is drawn.
-  if (await getDraw(raffle.id)) {
-    return NextResponse.json({ scanned: 0, assigned: [], unmatched: [], drawn: true });
+  // This route is public and the page polls it, so it is the easiest way to get
+  // a ticket minted. It must therefore honour the same cutoff as everything
+  // else: once the draw time passes the deciding ledger's hash is public, and
+  // assigning any further ticket would let somebody choose the winner after
+  // seeing it. See paymentsAccepted() in lib/raffle.ts.
+  if (!paymentsAccepted(raffle)) {
+    const late = await recentPaymentsTo(raffle.organizerAddress);
+    return NextResponse.json({
+      scanned: late.length,
+      assigned: [],
+      closed: true,
+      // Still reported, so the organizer can see money that arrived too late
+      // and settle it off-app. It just cannot buy a number any more.
+      unmatched: late
+        .filter((p) => parseReference(p.memo)?.raffleId === raffle.id)
+        .map((p) => ({
+          txHash: p.txHash,
+          memo: p.memo,
+          amount: p.amount,
+          reason: "Arrived after the draw time, when the outcome was already public.",
+        })),
+    });
   }
 
   const payments = await recentPaymentsTo(raffle.organizerAddress);

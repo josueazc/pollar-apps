@@ -117,14 +117,23 @@ export function BuyTicketModal({
     if (!reservation) return;
     setState({ step: "paying", reservation });
 
-    const asset: PaymentAsset =
-      reservation.assetCode === "XLM" || !reservation.assetIssuer
-        ? { type: "native" }
-        : {
-            type: reservation.assetCode.length > 4 ? "credit_alphanum12" : "credit_alphanum4",
-            code: reservation.assetCode,
-            issuer: reservation.assetIssuer,
-          };
+    // No native fallback. The old code fell back to `{ type: "native" }` when
+    // the issuer was missing, which is how a ticket meant to cost USDC could be
+    // paid in XLM instead. A reservation without an issuer is a bug, not a
+    // reason to spend a different asset.
+    if (!reservation.assetIssuer) {
+      setState({
+        step: "error",
+        message: "This raffle is missing its asset issuer. Nothing was charged.",
+      });
+      return;
+    }
+
+    const asset: PaymentAsset = {
+      type: reservation.assetCode.length > 4 ? "credit_alphanum12" : "credit_alphanum4",
+      code: reservation.assetCode,
+      issuer: reservation.assetIssuer,
+    };
 
     try {
       const result = await runTx(

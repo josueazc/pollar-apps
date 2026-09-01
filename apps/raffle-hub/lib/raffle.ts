@@ -9,6 +9,19 @@
 /** Stellar's hard limit for a `text` memo. */
 export const MEMO_MAX_BYTES = 28;
 
+/**
+ * The asset every ticket is priced and paid in: testnet USDC.
+ *
+ * Fixed rather than read from the buyer's wallet. An asset code on its own is
+ * not an identity — anyone can issue a token called "USDC" — so the issuer is
+ * what makes it the real thing, and it is pinned here so no raffle can be
+ * created against a look-alike or fall back to native XLM.
+ */
+export const TICKET_ASSET = {
+  code: "USDC",
+  issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+} as const;
+
 /** How long a picked number is held while its payment is in flight. */
 export const RESERVATION_MINUTES = 15;
 
@@ -114,6 +127,26 @@ export function salesOpen(raffle: Raffle, now = new Date()): boolean {
 /** Whether the draw may run: the announced time has arrived and sales are shut. */
 export function drawable(raffle: Raffle, now = new Date()): boolean {
   return now.getTime() >= Date.parse(raffle.drawTime);
+}
+
+/**
+ * Whether a payment may still turn into a ticket.
+ *
+ * The cutoff is `drawTime`, not "has the draw run yet", and the difference is
+ * the whole point. The moment the draw time passes, the deciding ledger closes
+ * and its hash becomes public — but the sold list would otherwise stay open
+ * until somebody happens to call the draw route. In that gap anyone can read
+ * the hash, work out which extra number shifts `hash mod count` onto a ticket
+ * of their own, pay with that number's memo, and get it minted. That is not a
+ * race to win a raffle; it is picking the winner after the fact.
+ *
+ * So payments stop being tickets at exactly the instant the outcome becomes
+ * knowable. Money that arrives later is still on-chain and still the
+ * organizer's, but it buys nothing and is reported as unmatched.
+ */
+export function paymentsAccepted(raffle: Raffle, now = new Date()): boolean {
+  if (raffle.salesClosedAt) return false;
+  return now.getTime() < Date.parse(raffle.drawTime);
 }
 
 /**

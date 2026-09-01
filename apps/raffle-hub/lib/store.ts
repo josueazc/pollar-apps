@@ -4,6 +4,7 @@ import {
   RESERVATION_MINUTES,
   isExpired,
   newRaffleId,
+  paymentsAccepted,
   ticketReference,
   type Raffle,
   type Ticket,
@@ -255,6 +256,18 @@ export async function claimForLatePayment(
   number: number,
   payment: { txHash: string; from: string; amount: string; createdAt: string }
 ): Promise<{ ok: boolean; reason?: string; ticket?: Ticket }> {
+  // This is the only path that mints a sold ticket out of nothing but an
+  // on-chain payment, which makes it the one most worth guarding twice. Callers
+  // check the cutoff too, but a future caller that forgets would hand an
+  // attacker the ability to buy a winning number after the deciding ledger's
+  // hash is public.
+  if (!paymentsAccepted(raffle)) {
+    return {
+      ok: false,
+      reason: "Arrived after the draw time, when the outcome was already public.",
+    };
+  }
+
   const client = await db();
   const reference = ticketReference(raffle.id, number);
 

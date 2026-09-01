@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { LoginButton } from "@/components/LoginButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useBalance } from "@/hooks/useBalance";
 import { usePollarAuth } from "@/hooks/usePollarAuth";
-import { paymentAssetFrom, currencyOf } from "@/lib/payments";
+import { TICKET_ASSET } from "@/lib/raffle";
 
 /** Default draw time: a week out, which is how long these things usually run. */
 function defaultDrawTime(): string {
@@ -21,7 +20,6 @@ function defaultDrawTime(): string {
 export default function CreateRafflePage() {
   const router = useRouter();
   const { user, login } = usePollarAuth();
-  const { asset } = useBalance();
 
   const [prizeName, setPrizeName] = useState("");
   const [prizeDescription, setPrizeDescription] = useState("");
@@ -33,8 +31,6 @@ export default function CreateRafflePage() {
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
 
-  const payAsset = paymentAssetFrom(asset);
-  const currency = currencyOf(payAsset);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -62,8 +58,10 @@ export default function CreateRafflePage() {
         numberCount: Number(numberCount),
         // datetime-local has no zone; the browser's own zone is the honest read.
         drawTime: new Date(drawTime).toISOString(),
-        assetCode: currency,
-        assetIssuer: payAsset.type === "native" ? null : payAsset.issuer,
+        // Not the wallet's primary asset: tickets are always USDC. Reading the
+        // wallet here is what let a raffle end up priced in native XLM.
+        assetCode: TICKET_ASSET.code,
+        assetIssuer: TICKET_ASSET.issuer,
         // Straight from the session: ticket money must land in the organizer's
         // own account, so this is never something anyone types.
         organizerAddress: user.address,
@@ -133,7 +131,7 @@ export default function CreateRafflePage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label={`Price per number (${currency})`}
+              label={`Price per number (${TICKET_ASSET.code})`}
               type="number"
               min="0.0000001"
               step="0.0000001"

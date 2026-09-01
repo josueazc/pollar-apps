@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getDraw, getRaffle, getTicketByReference, markSold } from "@/lib/store";
+import { getRaffle, getTicketByReference, markSold } from "@/lib/store";
 import { verifyPayment } from "@/lib/horizon";
+import { paymentsAccepted } from "@/lib/raffle";
 
 /**
  * The buyer's browser reports the hash it got back from the Pollar SDK.
@@ -34,15 +35,15 @@ export async function POST(
     return NextResponse.json({ error: "No raffle with that code." }, { status: 404 });
   }
 
-  // Once the draw is published its proof names the exact set of sold tickets.
-  // Adding another one afterwards would leave the published proof disagreeing
-  // with the page, so late payments are refused rather than quietly accepted.
-  // The money is on-chain and the organizer settles it off-app.
-  if (await getDraw(raffle.id)) {
+  // Payments stop counting at drawTime, not at "has the draw run yet". Once the
+  // draw time passes the deciding ledger's hash is public, so anyone could work
+  // out which extra number moves the winner onto a ticket of theirs and buy
+  // exactly that one. See paymentsAccepted() in lib/raffle.ts.
+  if (!paymentsAccepted(raffle)) {
     return NextResponse.json(
       {
         error:
-          "This raffle has already been drawn. Your payment arrived too late to become a ticket — contact the organizer.",
+          "Sales for this raffle closed at the draw time. Your payment arrived too late to become a ticket — contact the organizer.",
       },
       { status: 409 }
     );

@@ -7,8 +7,20 @@ y todos tienen que creerle. Acá el ganador no lo decide nadie — sale del hash
 ledger público de Stellar que nadie controla, ni el organizador. La página publica la
 prueba y cualquier desconocido puede recalcular el resultado por su cuenta.
 
-Cada ticket es un pago real en la testnet de Stellar vía el SDK de Pollar, directo a la
-cuenta del organizador. **La app nunca toca la plata.**
+Cada ticket es un pago real de **USDC** en la testnet de Stellar vía el SDK de Pollar,
+directo a la cuenta del organizador. **La app nunca toca la plata.**
+
+El asset está fijado en el código, no se toma de la wallet del comprador:
+
+```
+USDC · GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
+```
+
+El código por sí solo no identifica nada —cualquiera puede emitir un token llamado
+"USDC"— así que el emisor es lo que lo hace real, y se verifica en los dos extremos: al
+crear la rifa y al comprobar cada pago. No hay respaldo a XLM nativo en ningún camino:
+una rifa con otro asset se rechaza, y el modal de compra falla antes de cobrar en vez de
+pagar en otra moneda.
 
 ---
 
@@ -98,8 +110,14 @@ La página de la rifa muestra el ledger, su hash, la aritmética y el enlace al 
 Para verificarlo sin confiar en nada de acá:
 
 ```bash
-pnpm verify:draw scripts/out/draw-proof.json
+pnpm verify:draw scripts/example-draw-proof.json
 ```
+
+Esa prueba de ejemplo es un sorteo real y está committeada, así que el comando
+corre en un clon fresco sin tener que generar nada antes. El ledger y su hash
+son públicos y permanentes: cualquiera puede comprobarlo cuando quiera, sin
+levantar la app. (`pnpm spike:draw` genera una nueva en `scripts/out/`, que no
+se versiona.)
 
 Ese script ([`scripts/verify-draw.mjs`](scripts/verify-draw.mjs)) **no importa nada de la
 app**. Reimplementa el mecanismo desde cero, consulta Horizon público y solo acepta de la
@@ -193,8 +211,15 @@ que la referencia entre en el memo.
 - **Reportar un hash inventado mantiene la reserva viva** hasta que vence, porque una
   transacción que Horizon todavía no ingirió es indistinguible de una que no existe. El
   vencimiento de la reserva es lo que acota el daño.
-- **Un pago que llega después del sorteo se rechaza.** La prueba publicada ya fijó los
-  vendidos.
+- **Un pago que llega después de la hora del sorteo se rechaza**, aunque el sorteo todavía
+  no se haya ejecutado. Esto importa más de lo que parece: en cuanto pasa el `drawTime` el
+  ledger decisivo cierra y su hash es público, así que cualquiera podría calcular qué
+  número extra corre `hash mod cantidad` hasta un ticket suyo, pagar con ese memo y ganar
+  a pedido. Por eso el corte es el `drawTime` y no "¿ya se sorteó?": los pagos dejan de
+  comprar números en el instante exacto en que el resultado se vuelve conocible. Los tres
+  caminos que crean tickets —`confirm`, `reconcile` y `claimForLatePayment`— aplican el
+  mismo corte. La plata que llega después sigue siendo del organizador, pero se reporta
+  como `unmatched` y se arregla fuera de la app.
 
 ### Reservas
 

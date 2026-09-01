@@ -25,6 +25,12 @@ const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 /** A real, funded testnet account stands in for the organizer. */
 const ORGANIZER = "GBDFQPA2G4672RNGMQWQA2LHIP7BJ4PTYYFLGT3P5PO7VE6FBXAGA3CM";
 
+/** Tickets are always this asset; mirrors TICKET_ASSET in lib/raffle.ts. */
+const USDC = {
+  code: "USDC",
+  issuer: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+};
+
 let passed = 0;
 let failed = 0;
 
@@ -60,7 +66,8 @@ const created = await api("/api/raffles", {
     prizeName: "Spike prize",
     prizeDescription: "Created by scripts/spike-cycle.ts",
     ticketPrice: "1.5",
-    assetCode: "XLM",
+    assetCode: USDC.code,
+    assetIssuer: USDC.issuer,
     numberCount: 12,
     drawTime,
     organizerAddress: ORGANIZER,
@@ -111,9 +118,40 @@ const noAddress = await api("/api/raffles", {
     numberCount: 10,
     drawTime,
     organizerAddress: "not-an-address",
+    assetCode: USDC.code,
+    assetIssuer: USDC.issuer,
   }),
 });
 check("an organizer that is not a Stellar address", noAddress.status === 400);
+console.log();
+
+// ── 2b. The asset is not negotiable ──────────────────────────────────────────
+// The issue requires every ticket to be a real USDC payment. The client sends
+// the asset, so the client could send anything; the server is where that has to
+// be settled.
+console.log("Refuses anything that is not testnet USDC:");
+for (const [name, asset] of [
+  ["native XLM", { assetCode: "XLM", assetIssuer: null }],
+  ["USDC with no issuer", { assetCode: "USDC", assetIssuer: null }],
+  [
+    "a look-alike USDC from another issuer",
+    { assetCode: "USDC", assetIssuer: ORGANIZER },
+  ],
+  ["no asset at all", {}],
+] as const) {
+  const res = await api("/api/raffles", {
+    method: "POST",
+    body: JSON.stringify({
+      prizeName: "Wrong asset",
+      ticketPrice: "1",
+      numberCount: 10,
+      drawTime,
+      organizerAddress: ORGANIZER,
+      ...asset,
+    }),
+  });
+  check(name, res.status === 400);
+}
 console.log();
 
 // ── 3. Reserve ───────────────────────────────────────────────────────────────
@@ -125,8 +163,13 @@ const first = await api(`/api/raffles/${raffleId}/reserve`, {
 check("number 3 held", first.status === 200);
 check(
   "the memo reference fits Stellar's 28-byte limit",
-  new TextEncoder().encode(first.body.payment?.memo ?? "").length <= 28,
-  `"${first.body.payment?.memo}" — ${new TextEncoder().encode(first.body.payment?.memo ?? "").length} bytes`
+  // Asserting "<= 28" alone is worthless: an empty or undefined reference
+  // passes it, which is exactly what happened when this script still read the
+  // old field name. The shape is checked too, so the test fails when the
+  // reference goes missing instead of quietly approving nothing.
+  /^RH-[A-Z0-9]+-\d{4}$/.test(first.body.payment?.reference ?? "") &&
+    new TextEncoder().encode(first.body.payment?.reference ?? "").length <= 28,
+  `"${first.body.payment?.reference}" — ${new TextEncoder().encode(first.body.payment?.reference ?? "").length} bytes`
 );
 check(
   "payment is prefilled with the organizer and price",
@@ -148,7 +191,7 @@ console.log();
 
 // ── 4. Payment claims ────────────────────────────────────────────────────────
 console.log("Refuses mis-claimed payments:");
-const memo: string = first.body.payment.memo;
+const memo: string = first.body.payment.reference;
 
 const garbage = await api(`/api/tickets/${encodeURIComponent(memo)}/confirm`, {
   method: "POST",
@@ -204,6 +247,45 @@ console.log();
 const waitMs = Date.parse(drawTime) - Date.now() + 8_000;
 console.log(`Waiting ${Math.ceil(waitMs / 1000)}s for the draw time and its ledger…`);
 await new Promise((resolve) => setTimeout(resolve, Math.max(waitMs, 0)));
+console.log();
+
+// ── 6b. The window where the draw could be steered ───────────────────────────
+// The draw time has now passed, so the deciding ledger has closed and its hash
+// is public — but nobody has called the draw route yet. If a ticket could still
+// be minted here, anyone could read the hash, work out which extra number moves
+// `hash mod count` onto a ticket of theirs, pay with that memo, and win on
+// demand. Every path that mints a ticket has to be shut at drawTime, not at
+// draw-executed.
+console.log("Refuses to mint tickets once the outcome is knowable:");
+
+const lateReserve = await api(`/api/raffles/${raffleId}/reserve`, {
+  method: "POST",
+  body: JSON.stringify({ number: 8 }),
+});
+check("reserving a new number after the draw time", lateReserve.status === 409);
+
+const lateConfirm = await api(`/api/tickets/${encodeURIComponent(memo)}/confirm`, {
+  method: "POST",
+  body: JSON.stringify({
+    txHash: "7e5bc1870fbd3b2357613d21ca26501276b6f090088d6424c481fd31fae78cd3",
+  }),
+});
+check(
+  "confirming a payment after the draw time",
+  lateConfirm.status === 409,
+  lateConfirm.body.error
+);
+
+// The reconcile route is public and the raffle page polls it, so it is the
+// easiest path to a minted ticket and the one most worth proving shut.
+const lateReconcile = await api(`/api/raffles/${raffleId}/reconcile`, { method: "POST" });
+check(
+  "reconcile assigns nothing after the draw time",
+  lateReconcile.body.closed === true &&
+    Array.isArray(lateReconcile.body.assigned) &&
+    lateReconcile.body.assigned.length === 0,
+  `closed=${lateReconcile.body.closed}, assigned=${JSON.stringify(lateReconcile.body.assigned)}`
+);
 console.log();
 
 console.log("Drawing:");
