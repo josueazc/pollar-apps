@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LoginButton } from "@/components/LoginButton";
 import { BalanceCard } from "@/components/BalanceCard";
+import { SendModal } from "@/components/SendModal";
+import { ReceiveModal } from "@/components/ReceiveModal";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { usePollarAuth } from "@/hooks/usePollarAuth";
@@ -13,6 +15,7 @@ import type { Raffle } from "@/lib/raffle";
 export default function Home() {
   const { user } = usePollarAuth();
   const [raffles, setRaffles] = useState<Raffle[] | null>(null);
+  const [wallet, setWallet] = useState<"send" | "receive" | null>(null);
 
   useEffect(() => {
     fetch("/api/raffles", { cache: "no-store" })
@@ -34,7 +37,25 @@ export default function Home() {
         <LoginButton />
       </header>
 
-      {user && <BalanceCard />}
+      {user && (
+        <section className="flex flex-col gap-3">
+          <BalanceCard />
+          {/*
+            Buying a number costs USDC, so a buyer whose wallet is empty needs a
+            way to put some in — Receive shows the address to fund, Send moves it
+            on. Both are the template's own flows; the raffle screens simply had
+            nowhere to reach them from.
+          */}
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setWallet("receive")}>
+              Receive
+            </Button>
+            <Button variant="secondary" onClick={() => setWallet("send")}>
+              Send
+            </Button>
+          </div>
+        </section>
+      )}
 
       <Link href="/create">
         <Button className="w-full sm:w-auto">Start a raffle</Button>
@@ -78,6 +99,9 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      <SendModal open={wallet === "send"} onClose={() => setWallet(null)} />
+      <ReceiveModal open={wallet === "receive"} onClose={() => setWallet(null)} />
     </main>
   );
 }
