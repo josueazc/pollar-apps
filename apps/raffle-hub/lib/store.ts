@@ -268,6 +268,12 @@ export async function claimForLatePayment(
     };
   }
 
+  // Same range rule reserveNumber applies. Without it, a well-formed memo like
+  // RH-<id>-9998 would mint a sold ticket for a number that is not on the grid.
+  if (!Number.isInteger(number) || number < 1 || number > raffle.numberCount) {
+    return { ok: false, reason: `Number ${number} is not part of this raffle.` };
+  }
+
   const client = await db();
   const reference = ticketReference(raffle.id, number);
 
